@@ -82,13 +82,44 @@ log_group = "/ecs/my-service"
         }
         for (i, t) in self.tabs.iter().enumerate() {
             if t.log_group.trim().is_empty() {
-                return Err(anyhow!(
-                    "tab #{i} ({}): `log_group` is required",
-                    t.name
-                ));
+                return Err(anyhow!("tab #{i} ({}): `log_group` is required", t.name));
             }
         }
         Ok(())
+    }
+
+    /// Build a single-tab Config from a CLI `--log-group` invocation —
+    /// the cross-sibling handoff path. Bypasses the on-disk config
+    /// entirely (the user's regular tabs aren't touched).
+    ///
+    /// `name` defaults to the log group's last path segment so a
+    /// Lambda function's `/aws/lambda/api-handler` group renders as
+    /// `api-handler` in the tab strip.
+    pub fn one_off_tab(
+        log_group: String,
+        name: Option<String>,
+        filter: Option<String>,
+        region: Option<String>,
+    ) -> Self {
+        let label = name.unwrap_or_else(|| {
+            log_group
+                .rsplit('/')
+                .next()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(&log_group)
+                .to_string()
+        });
+        Config {
+            region: region.clone(),
+            refresh_interval_secs: 0,
+            tabs: vec![Tab {
+                name: label,
+                log_group,
+                log_stream: None,
+                region,
+                filter,
+            }],
+        }
     }
 }
 
@@ -136,6 +167,44 @@ mod tests {
             tabs: vec![],
         };
         assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn one_off_tab_derives_label_from_last_path_segment() {
+        let cfg = Config::one_off_tab("/aws/lambda/api-handler".to_string(), None, None, None);
+        assert_eq!(cfg.tabs.len(), 1);
+        assert_eq!(cfg.tabs[0].name, "api-handler");
+        assert_eq!(cfg.tabs[0].log_group, "/aws/lambda/api-handler");
+    }
+
+    #[test]
+    fn one_off_tab_uses_explicit_name_when_given() {
+        let cfg = Config::one_off_tab(
+            "/aws/lambda/x".to_string(),
+            Some("My Lambda".to_string()),
+            None,
+            None,
+        );
+        assert_eq!(cfg.tabs[0].name, "My Lambda");
+    }
+
+    #[test]
+    fn one_off_tab_threads_filter_and_region() {
+        let cfg = Config::one_off_tab(
+            "/g".to_string(),
+            None,
+            Some("ERROR".to_string()),
+            Some("us-west-2".to_string()),
+        );
+        assert_eq!(cfg.region.as_deref(), Some("us-west-2"));
+        assert_eq!(cfg.tabs[0].filter.as_deref(), Some("ERROR"));
+        assert_eq!(cfg.tabs[0].region.as_deref(), Some("us-west-2"));
+    }
+
+    #[test]
+    fn one_off_tab_validates_clean() {
+        let cfg = Config::one_off_tab("/x".to_string(), None, None, None);
+        cfg.validate().expect("one-off tab must validate");
     }
 
     #[test]

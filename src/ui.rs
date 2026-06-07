@@ -86,7 +86,11 @@ fn draw_tabs(f: &mut Frame, area: Rect, app: &App) {
         })
         .collect();
     let tabs = Tabs::new(labels)
-        .block(Block::default().borders(Borders::ALL).title(" cloudwatch logs "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" cloudwatch logs "),
+        )
         .select(app.active_tab)
         .highlight_style(
             Style::default()
@@ -99,8 +103,7 @@ fn draw_tabs(f: &mut Frame, area: Rect, app: &App) {
 
 fn draw_logs(f: &mut Frame, area: Rect, tab: &TabState) {
     if let Some(err) = &tab.data.last_error {
-        let p = Paragraph::new(format!("error: {err}"))
-            .style(Style::default().fg(Color::Red));
+        let p = Paragraph::new(format!("error: {err}")).style(Style::default().fg(Color::Red));
         f.render_widget(p, area);
         return;
     }
