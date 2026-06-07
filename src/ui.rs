@@ -143,7 +143,7 @@ fn draw_logs(f: &mut Frame, area: Rect, tab: &TabState) {
 }
 
 fn draw_status(f: &mut Frame, area: Rect, app: &App) {
-    let hint = " 1-9 tab · ↑↓/jk scroll · y yank line · o console · q quit ";
+    let hint = " 1-9 tab · ↑↓/jk scroll · o console · y line · q quit ";
     let line = Line::from(vec![
         Span::styled(
             format!(" {} ", app.status),
