@@ -132,12 +132,15 @@ impl LogTailPane {
         cwd: std::path::PathBuf,
     ) -> Result<(Self, Receiver<LogTailEvent>), String> {
         let (tx, rx) = channel::<LogTailEvent>();
+        // `aws logs tail` takes the log group as a positional arg,
+        // NOT as `--log-group-name` (that's only valid on
+        // `aws logs filter-log-events`). The earlier flag form
+        // errored with "Unknown options: --log-group-name". 2026-06-27 fix.
         let mut args: Vec<String> = vec![
             "logs".into(),
             "tail".into(),
-            "--follow".into(),
-            "--log-group-name".into(),
             log_group.clone(),
+            "--follow".into(),
             // `--format short` strips the date prefix (we already know
             // these are recent + the line is short enough without it).
             "--format".into(),
