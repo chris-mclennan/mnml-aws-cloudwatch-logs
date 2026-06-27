@@ -133,16 +133,21 @@ impl LogTailPane {
     ) -> Result<(Self, Receiver<LogTailEvent>), String> {
         let (tx, rx) = channel::<LogTailEvent>();
         // `aws logs tail` takes the log group as a positional arg,
-        // NOT as `--log-group-name` (that's only valid on
-        // `aws logs filter-log-events`). The earlier flag form
-        // errored with "Unknown options: --log-group-name". 2026-06-27 fix.
+        // NOT as `--log-group-name`. 2026-06-27 fix.
+        //
+        // `--since 1h` backfills the last hour of logs BEFORE
+        // following — so opening a pane on a quiet log group
+        // shows meaningful history instead of an empty viewport
+        // waiting for the next event. A recently-completed run
+        // is visible immediately, not "until the next line
+        // happens to arrive".
         let mut args: Vec<String> = vec![
             "logs".into(),
             "tail".into(),
             log_group.clone(),
+            "--since".into(),
+            "1h".into(),
             "--follow".into(),
-            // `--format short` strips the date prefix (we already know
-            // these are recent + the line is short enough without it).
             "--format".into(),
             "short".into(),
         ];
